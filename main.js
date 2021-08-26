@@ -747,20 +747,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.querySelector('#culto .contenido').innerHTML = '<p class="text-danger">Ha ocurrido un error, trate más tarde.</p>';
         });
     }
-    // WINDOWS EVENTS
-    let windowTimeOut;
-    window.location.hash = 'header';
-
-    window.addEventListener('resize', ()=> {
-        clearTimeout(windowTimeOut);
-        
-        let paso = window.location.hash;
-        
-        windowTimeOut = setTimeout(() => {            
-            window.location.hash = 'header';
-            window.location.hash = paso;
-        }, 500);
-    });
     // async function agregarCulto(datos = {}) {
     
     //     // validar que no venga vacio
