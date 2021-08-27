@@ -547,6 +547,39 @@ article#agradecimiento {
     width: 
 } */
 
+/* ADMINISTRACION */
+
+.administracion {
+    padding-top: 1.5rem;
+    transition: all .5s ease-in-out;
+}
+.administracion input {
+    width: 100%;
+    max-width: 768px;
+    display: block;
+    outline: none;
+}
+.administracion #listadoAsistencia {
+    max-width: 768px;
+    margin: 0 auto;
+}
+#listadoAsistencia .card {
+    padding: 1.3rem;
+    border-radius: 17px;
+}
+#listadoAsistencia .card p {
+    margin: 0px;
+}
+#listadoAsistencia .card p.cantidad {
+    color: var(--rojoSalsa);
+}
+body#admin {
+    overflow-y: scroll;
+    background: none;
+    background-color: var(--grisito);
+}
+
+
 /* Footer */
 
 
@@ -563,4 +596,12 @@ footer {
 footer div.redes > a {
     color: var(--usafaBlue);
     text-decoration: none;
+    font-size: 1.3rem;
+}
+footer div.redes > a .bi-instagram{
+    color: var(--rojoSalsa);
+}
+footer div.redes img {
+    max-width: 22px;
+    transform: translateY(-2px);
 }

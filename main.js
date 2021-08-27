@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ];
 
     // obtener elementos y variables globales
-    // get elements & global vars
+    // get elements & global vars    
     let soloElement = document.getElementById('solo'), 
         grupoElement = document.getElementById('grupo'),
         nombreInput = document.querySelector('#nombre'),
@@ -47,11 +47,82 @@ document.addEventListener('DOMContentLoaded', async () => {
             modalHandle : new bootstrap.Modal(document.getElementById('servicioRecordatorioModal'))
         },
         cultoSeleccionado = null,
-        recordatorio = localStorage.getItem('iglesiaDeDiosBelloCampoAsistencia');
+        recordatorio = localStorage.getItem('iglesiaDeDiosBelloCampoAsistencia'),
+        adminUI = document.querySelector('.administracion')? true : false;
+
+    // resetear todo 
+    window.location.hash = '';
+    // deshabilitar inputs
+    document.querySelectorAll('#asistencia input').forEach(input => {
+        input.disabled = true;
+    });
+    
+    // interfaz ADMIN 
+    if(adminUI) {
+        let inputTimeOut;
+        document.querySelector('.administracion input#code').addEventListener('input', async ev => {            
+            clearTimeout(inputTimeOut);
+            inputTimeOut = setTimeout(async () => {
+                let validarCodigo = /^[a-z 0-9,.'-]+$/i;
+                if(ev.target.value.length < 2 || !validarCodigo.test(ev.target.value)) return;
+                // VALIDAR CODIGO ADMIN
+                let url = `https://iglesiadedios-bellocampo.herokuapp.com/validar-codigo/${ev.target.value.trim()}`;
+                let res = await fetch(url, {
+                    method: 'GET'
+                }).catch(err => {
+                    console.log(err)
+                    document.querySelector('.formAsistencia').innerHTML = '<p class="text-danger">Ha ocurrido un error, trate más tarde.</p>';
+                });        
+                res.json().then(async resJson => {   
+                    // Obtener elemento
+                    let pElement = document.querySelector('p.error')?
+                                            document.querySelector('p.error') 
+                                            : document.createElement('p');
+
+                    // agregar transition
+                    pElement.style.transition = 'all .5s ease-in-out';
+
+                    // Ver si hay error
+                    if(resJson.error) {                        
+                        // Mostrar error
+                        pElement.className = 'error text-center mt-3';
+                        pElement.style.color = 'var(--rojo)';
+                        pElement.innerHTML = `Código Invalido: ${resJson.error.mensaje}`;
+
+                        ev.target.style.border = '4px solid var(--rojo)';
+                        ev.target.parentElement.appendChild(pElement);
+
+                        return; 
+                    }else {
+                        // Mostrar mensaje de que todo está bien
+                        ev.target.style.border = '4px solid #000';
+                        ev.target.disabled = true;
+
+                        pElement.style.color = 'var(--usafaBlue)';
+                        pElement.innerHTML = 'Validado correctamente <i class="bi bi-check-lg"></i>';
+                        setTimeout(() => {
+                            pElement.style.opacity = '0';
+                            setTimeout(() => {
+                                pElement.remove();
+                            }, 1500);
+                        }, 4000);
+    
+                        // obtener cultos
+                        await getDataCulto(datos = {
+                            nombre: 'admin',
+                            tipoAsistencia: 'admin'
+                        });
+                        ev.target.style.display = 'none';
+                    }
+                })
+            }, 500);
+        });
+    }
+
 
     // ===== PASO 0 =====
     // Validar si hay un recordatorio
-    if(recordatorio){
+    if(recordatorio && !adminUI){
         let recordatorioElemento = document.getElementById('recordatorio');
         setTimeout(() => {            
             let datosRecordatorio = JSON.parse(recordatorio);
@@ -89,133 +160,134 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ===== PASO 2 ======
     // Detectar si es miembro o visita
     // Detect if is a member or visit
-    document.querySelector('.botones').addEventListener('click', async ev => {
+    if(!adminUI) {
+        document.querySelector('.botones').addEventListener('click', async ev => {
 
-        let tipoAsistencia = (ev.target.id).toLowerCase();
+            let tipoAsistencia = (ev.target.id).toLowerCase();
 
-        let spiner = `
-            <div class="spinner mt-4">
-                <div class="bounce1"></div>
-                <div class="bounce2"></div>
-                <div class="bounce3"></div>
-            </div>
-        `;
+            let spiner = `
+                <div class="spinner mt-4">
+                    <div class="bounce1"></div>
+                    <div class="bounce2"></div>
+                    <div class="bounce3"></div>
+                </div>
+            `;
 
-        if( tipoAsistencia == 'miembro' || tipoAsistencia == 'visita' ) {
-            document.querySelector('.formAsistencia p').innerHTML = spiner;
-            // Consultar
-            await getDataAsistencia({tipoAsistencia});
-        }
-    });
-    // ===== PASO 3 ======
-    // obtener cultos disponibles
-    // Get services available
-    document.querySelector('.boton.siguiente').addEventListener('click', async ev => {
-        // Consultar servicios disponibles
-        await getDataCulto({
-            nombre : nombreInput.value,
-            tipoAsistencia : tipoAsistencia.value,
-            cantidadAsistencia : soloElement.checked && !grupoElement.checked? 
-                                    0 : Number(cantidadInput.value),
-            invitados : tipoAsistencia.value == 'miembro' && cantInvitadosInput.value.length > 0? 
-                        cantInvitadosInput.value : 0 
-        });    
-    });
-    // ===== PASO 4 =====
-    // Agradecimientos
-    function darAgradecimientos(datos) {
-        document.querySelector('#agradecimiento .volver a').innerHTML 
-                = `<i class="bi bi-arrow-90deg-up"></i> Deshacer ( 11 )`;
-        // console.log(datos)
-        const { cantidadAsistencia } = datos;
-        const objParaGuardar = {
-            asistencia: {
-                nombre: datos.nombre.trim().toLowerCase(),
-                tipoAsistencia: datos.tipoAsistencia,
-                invitados: datos.invitados,
-                cantidadAsistencia: datos.cantidadAsistencia
-            },
-            servicio: {
-                id: datos.id,
-                nombre: cultoSeleccionado.nombre,
-                tema: cultoSeleccionado.tema,
-                horaEmpieza: cultoSeleccionado.horaEmpieza,
-                horaTermina: cultoSeleccionado.horaTermina
+            if( tipoAsistencia == 'miembro' || tipoAsistencia == 'visita' ) {
+                document.querySelector('.formAsistencia p').innerHTML = spiner;
+                // Consultar
+                await getDataAsistencia({tipoAsistencia});
             }
-        }
-
-        // Llenar datos del culto
-        document.querySelector('#agradecimiento .culto .nombre').innerText = cultoSeleccionado.nombre;
-        document.querySelector('#agradecimiento .culto .tema').innerText = cultoSeleccionado.tema;
-        document.querySelector('#agradecimiento .culto .hora').innerText = `${cultoSeleccionado.horaEmpieza} - ${cultoSeleccionado.horaTermina}`;
-        if(tipoAsistencia.value == 'miembro') {
-            document.querySelector('#agradecimiento .culto .asistencia').style.opacity = '1';
-            document.querySelector('#agradecimiento .culto .asistenciaActual').innerText = cultoSeleccionado.asistenciaActual + cantidadAsistencia;
-            document.querySelector('#agradecimiento .culto .asistenciaMaxima').innerText = cultoSeleccionado.asistenciaMaxima;
-        }else {
-            document.querySelector('#agradecimiento .culto .asistencia').style.opacity = '0';
-        }
-
-        // Llenar datos de asistencia
-        document.querySelector('#agradecimiento .nombre').innerHTML = datos.nombre;
-        document.querySelector('#agradecimiento .nombre').style.color = 'var(--rojo)';
-        document.querySelector('#agradecimiento .contenido p').innerHTML = cantidadAsistencia > 1?
-                                                                            'Los esperamos <i class="bi bi-heart-fill"></i>' 
-                                                                            : 'Te esperamos <i class="bi bi-heart-fill"></i>';
-
-        // btn deshacer durante 10 segundos, despues, no se puede deshacer
-        let segundos = 11,
-            intervalos;
-        intervalos = setInterval(async () => {
-            if(segundos >= 0) {
-                segundos -= 1;
-                document.querySelector('#agradecimiento .volver a').innerHTML 
-                = `<i class="bi bi-arrow-90deg-up"></i> Deshacer ( ${segundos} )`; 
+        });
+        // ===== PASO 3 ======
+        // obtener cultos disponibles
+        // Get services available
+        document.querySelector('.boton.siguiente').addEventListener('click', async ev => {
+            // Consultar servicios disponibles
+            await getDataCulto({
+                nombre : nombreInput.value,
+                tipoAsistencia : tipoAsistencia.value,
+                cantidadAsistencia : soloElement.checked && !grupoElement.checked? 
+                                        0 : Number(cantidadInput.value),
+                invitados : tipoAsistencia.value == 'miembro' && cantInvitadosInput.value.length > 0? 
+                            cantInvitadosInput.value : 0 
+            });    
+        });
+        // ===== PASO 4 =====
+        // Agradecimientos
+        function darAgradecimientos(datos) {
+            document.querySelector('#agradecimiento .volver a').innerHTML 
+                    = `<i class="bi bi-arrow-90deg-up"></i> Deshacer ( 5 )`;
+            // console.log(datos)
+            const { cantidadAsistencia } = datos;
+            const objParaGuardar = {
+                asistencia: {
+                    nombre: datos.nombre.trim().toLowerCase(),
+                    tipoAsistencia: datos.tipoAsistencia,
+                    invitados: datos.invitados,
+                    cantidadAsistencia: datos.cantidadAsistencia
+                },
+                servicio: {
+                    id: datos.id,
+                    nombre: cultoSeleccionado.nombre,
+                    tema: cultoSeleccionado.tema,
+                    horaEmpieza: cultoSeleccionado.horaEmpieza,
+                    horaTermina: cultoSeleccionado.horaTermina
+                }
             }
-            // Si el contador llega a 0, detener intervalo
-            if(segundos <= 0) {
-                clearInterval(intervalos);
-                document.querySelector('#agradecimiento .volver a').innerHTML = 'Listo <i class="bi bi-bookmark-check-fill"></i>';
-                document.querySelector('#agradecimiento .volver a').href = '#';
-                // Guardar asistencia
-                await guardarAsistencia(objParaGuardar);
+
+            // Llenar datos del culto
+            document.querySelector('#agradecimiento .culto .nombre').innerText = cultoSeleccionado.nombre;
+            document.querySelector('#agradecimiento .culto .tema').innerText = cultoSeleccionado.tema;
+            document.querySelector('#agradecimiento .culto .hora').innerText = `${cultoSeleccionado.horaEmpieza} - ${cultoSeleccionado.horaTermina}`;
+            if(tipoAsistencia.value == 'miembro') {
+                document.querySelector('#agradecimiento .culto .asistencia').style.opacity = '1';
+                document.querySelector('#agradecimiento .culto .asistenciaActual').innerText = cultoSeleccionado.asistenciaActual + cantidadAsistencia;
+                document.querySelector('#agradecimiento .culto .asistenciaMaxima').innerText = cultoSeleccionado.asistenciaMaxima;
+            }else {
+                document.querySelector('#agradecimiento .culto .asistencia').style.opacity = '0';
             }
-        }, 1000);
-        // Detectar si cliquea deshacer
-        document.querySelector('#agradecimiento .volver').addEventListener('click', ev => {
-            // Si al cliquear todo esta listo, recargar pagina
-            if(ev.target.textContent.trim().toLowerCase() == 'listo') {
-                ev.preventDefault();
-                window.location.hash = 'agradecimiento';
-                window.location.assign(window.location.pathname);
-            };
-            document.querySelector('#confirmado').classList.remove('confirmadoANIMATION');
-            document.querySelector('.siguiente').click();
-            // window.location.hash = 'culto';
-            clearInterval(intervalos);
-        })
-        // guardar asistencia
-        let timeout;
-        async function guardarAsistencia(datos) {
-            clearTimeout(timeout)
-            timeout = setTimeout(async () => {                
-                // Destructuring
-                const { servicio, asistencia } = datos;
-    
-                // guardar datos en el LS
-                localStorage.setItem('iglesiaDeDiosBelloCampoAsistencia', JSON.stringify(datos));
-    
-                // guardar cambios en BD
-                let url = `https://iglesiadedios-bellocampo.herokuapp.com/seleccionar-culto/${servicio.id}/${asistencia.nombre}/${asistencia.tipoAsistencia}/${asistencia.cantidadAsistencia}/${asistencia.invitados}`;
-                let res = await fetch(url, {
-                    method: 'GET'
-                });
-            
-                console.log( await res.json() );    
+
+            // Llenar datos de asistencia
+            document.querySelector('#agradecimiento .nombre').innerHTML = datos.nombre;
+            document.querySelector('#agradecimiento .nombre').style.color = 'var(--rojo)';
+            document.querySelector('#agradecimiento .contenido p').innerHTML = cantidadAsistencia > 1?
+                                                                                'Los esperamos <i class="bi bi-heart-fill"></i>' 
+                                                                                : 'Te esperamos <i class="bi bi-heart-fill"></i>';
+
+            // btn deshacer durante 10 segundos, despues, no se puede deshacer
+            let segundos = 5,
+                intervalos;
+            intervalos = setInterval(async () => {
+                if(segundos >= 0) {
+                    segundos -= 1;
+                    document.querySelector('#agradecimiento .volver a').innerHTML 
+                    = `<i class="bi bi-arrow-90deg-up"></i> Deshacer ( ${segundos} )`; 
+                }
+                // Si el contador llega a 0, detener intervalo
+                if(segundos <= 0) {
+                    clearInterval(intervalos);
+                    document.querySelector('#agradecimiento .volver a').innerHTML = 'Listo <i class="bi bi-bookmark-check-fill"></i>';
+                    document.querySelector('#agradecimiento .volver a').href = '#';
+                    // Guardar asistencia
+                    await guardarAsistencia(objParaGuardar);
+                }
             }, 1000);
+            // Detectar si cliquea deshacer
+            document.querySelector('#agradecimiento .volver').addEventListener('click', ev => {
+                // Si al cliquear todo esta listo, recargar pagina
+                if(ev.target.textContent.trim().toLowerCase() == 'listo') {
+                    ev.preventDefault();
+                    window.location.hash = 'agradecimiento';
+                    window.location.assign(window.location.pathname);
+                };
+                document.querySelector('#confirmado').classList.remove('confirmadoANIMATION');
+                document.querySelector('.siguiente').click();
+                // window.location.hash = 'culto';
+                clearInterval(intervalos);
+            })
+            // guardar asistencia
+            let timeout;
+            async function guardarAsistencia(datos) {
+                clearTimeout(timeout)
+                timeout = setTimeout(async () => {                
+                    // Destructuring
+                    const { servicio, asistencia } = datos;
+        
+                    // guardar datos en el LS
+                    localStorage.setItem('iglesiaDeDiosBelloCampoAsistencia', JSON.stringify(datos));
+        
+                    // guardar cambios en BD
+                    let url = `https://iglesiadedios-bellocampo.herokuapp.com/seleccionar-culto/${servicio.id}/${asistencia.nombre}/${asistencia.tipoAsistencia}/${asistencia.cantidadAsistencia}/${asistencia.invitados}`;
+                    let res = await fetch(url, {
+                        method: 'GET'
+                    });
+                
+                    console.log( await res.json() );    
+                }, 1000);
+            }
         }
     }
-
     // funciones de consulta
     // await agregarCulto({
     //     accion : 'agregar-culto',
@@ -235,7 +307,69 @@ document.addEventListener('DOMContentLoaded', async () => {
     
         console.log( await res.json() );
     }
+    async function obtenerDatosDeAsistencia(cultoId) {
+        let validarId = /^[a-z 0-9,.'-_]+$/i;
+        console.log(cultoId);
+        if(cultoId.length < 2 || !validarId.test(cultoId) ) return;
+
+        // Consultar datos
+        let url = `https://iglesiadedios-bellocampo.herokuapp.com/obtener-datos-asistencia/${cultoId}`;
+        let res = await fetch(url, {
+            method: 'GET'
+        }).catch(err => console.log(err));
     
+        res.json().then(resJson => {
+            let listaAsistencia = document.getElementById('listadoAsistencia'),
+                miembrosElement = document.getElementById('miembros'),
+                visitasElement = document.getElementById('visitas');
+
+            miembrosElement.innerHTML = '';
+            visitasElement.innerHTML = '';
+
+            console.log( resJson );
+            resJson.datosAsistencia.forEach(datoAsistencia => {
+
+                
+                console.log(datoAsistencia.fechaCreacion)
+                console.log(moment(datoAsistencia.fechaCreacion, '' ).format('dddd LL, h:mm a'))
+                if(datoAsistencia.tipoAsistencia == 'visita') {
+                    visitasElement.innerHTML += `
+                        <div class="card shadow mt-4">
+                            <h6 class="nombreAsistencia m-0 text-capitalize fw-bold" style="color: var(--usafaBlue);">
+                                ${ datoAsistencia.cantidad > 1 || datoAsistencia.invitados > 0 ?
+                                    '<i class="bi bi-people-fill"></i>'
+                                    :'<i class="bi bi-person-fill"></i>'}
+                                ${datoAsistencia.nombre}
+                            </h6>
+                            <p class="cantidad">
+                                ${datoAsistencia.cantidad > 1? 
+                                    'Grupo de '+datoAsistencia.cantidad : '' }
+                            </p>
+
+                        </div>
+                    `;
+                }
+                if(datoAsistencia.tipoAsistencia == 'miembro'){
+                    miembrosElement.innerHTML += `
+                        <div class="card shadow mt-4">
+                            <h6 class="nombreAsistencia m-0 text-capitalize fw-bold" style="color: var(--usafaBlue);">
+                                ${ datoAsistencia.cantidad > 1 || datoAsistencia.invitados > 0 ?
+                                    '<i class="bi bi-people-fill"></i>'
+                                    :'<i class="bi bi-person-fill"></i>'}
+                                ${datoAsistencia.nombre}
+                            </h6>
+                            <p class="invitados text-muted">${datoAsistencia.invitados} invitados</p>
+                            <p class="cantidad fw-bold">
+                                ${datoAsistencia.cantidad > 1? 
+                                    'Grupo de '+datoAsistencia.cantidad : '' }
+                            </p>
+                        </div>
+                    `;
+                }
+            })
+        })
+
+    }
     async function getVersiculoBiblico() {
         // let url = 'https://dailyverses.net/get/random?language=rvr60&isdirect=1&position&fbclid=IwAR204J5eGHlbOIPBf68yXd_KMY2cA4yXqcT6XFPcMqRWpkom7MtlcZm2fKc'+ Math.floor(Math.random() * 201) + '&url=' + window.location.hostname
         let url = 'https://dailyverses.net/get/verse?language=rvr60&isdirect=1'+ Math.floor(Math.random() * 201) + '&url=' + window.location.hostname;
@@ -273,13 +407,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.querySelector('.formAsistencia').innerHTML = '<p class="text-danger">Ha ocurrido un error, trate más tarde.</p>';
         });
 
-        resJson = {
-            mensaje: `Oh eres ${datos.tipoAsistencia}, solo o familia?`,
-            tipoAsistencia: datos.tipoAsistencia
-        }
+        // resJson = {
+        //     mensaje: `Oh eres ${datos.tipoAsistencia}, solo o familia?`,
+        //     tipoAsistencia: datos.tipoAsistencia
+        // }
 
-        res.json().then(resJson => {
-        
+        // Deshabilitar inputs
+        document.querySelectorAll('#asistencia input').forEach(input => {
+            input.disabled = true;
+        });
+
+        res.json().then(resJson => {        
             // Validar Si no es miembro, no puede llevar invitados
             if(resJson.tipoAsistencia !== 'miembro'){
                 invitadosToggle(false);
@@ -292,6 +430,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         
             setTimeout( async () => { 
+                // Habilitar inputs
+                document.querySelectorAll('#asistencia input').forEach(input => {
+                    input.disabled = false;
+                });
+
                 // Mostrar mensaje
                 // show message
                 let mensaje = resJson.mensaje.replace(resJson.tipoAsistencia, `<span style='color: var(--rojo)'>${resJson.tipoAsistencia}</span>`);
@@ -372,7 +515,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(e.target.value < 1) {
                             invitadosToggle('cerrar');
                         }
+                        if(Number(e.target.value) > 20 ) {
+                            e.target.value = 20;
+                        }
                     });
+                    cantidadInput.addEventListener('change', e => {
+                        if(Number(e.target.value) > 10 ) {
+                            e.target.value = 20;
+                        }
+                    })
                     // reset var
                     resJson.tipoAsistencia = '';
                 });
@@ -530,7 +681,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         // validar que no venga vacio
         // validate is not empty
         if(Object.keys(datos).length < 1 || !datos.tipoAsistencia ) return;
-        let url = `https://iglesiadedios-bellocampo.herokuapp.com/culto/${datos.nombre}/${datos.tipoAsistencia}/${datos.cantidadAsistencia}/${datos.invitados}`;
+        // Url dependiendo si es admin o no
+        let url;
+        if(datos.tipoAsistencia == 'admin'){
+            url = `https://iglesiadedios-bellocampo.herokuapp.com/culto/admin/admin/${0}/${0}`;
+        }else {
+            url = `https://iglesiadedios-bellocampo.herokuapp.com/culto/${datos.nombre}/${datos.tipoAsistencia}/${datos.cantidadAsistencia}/${datos.invitados}`;
+        }
         let res = await fetch(url, {
             method: 'GET'
         }).catch(err => {
@@ -562,7 +719,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // ==========
 
         res.json().then(resJson => {
-            let soloOgrupo = soloElement.checked && !grupoElement.checked ? 1 : Number(cantidadInput.value);
+            let soloOgrupo = !adminUI && soloElement.checked && !grupoElement.checked || adminUI ? 1 : Number(cantidadInput.value);
 
             // Crear los templates
             // resJson.cultos[0].asistenciaActual = 99;
@@ -608,7 +765,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 ${ !cultoNoDisponible.disponible? 
                                     cultoNoDisponible.texto
                                 : (
-                                    tipoAsistencia.value == 'miembro'?
+                                    tipoAsistencia.value == 'miembro' || tipoAsistencia.value == 'admin'?
                                     `
                                     <div class="asistencias">
                                         <span class="asistenciaActual">
@@ -638,14 +795,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             setTimeout(() => {
                 // insertar HTML
                 cultoContenido.innerHTML = `
-                    ${resJson.mensajeHTML.h5}
-                    ${resJson.mensajeHTML.p}
+                    ${!adminUI? 
+                        resJson.mensajeHTML.h5 
+                        : '<h4 class="text-center" style="color: var(--rojo)">ADMINISTRACIÓN</h4>'}
+                    ${!adminUI? 
+                        resJson.mensajeHTML.p 
+                        : '<p class="mb-4 text-center">¿De cuál servicio quieres ver los datos?</p>'}
                     <div class="cultos row mx-auto w-100">
                         ${resJson.cultos.length > 0? cultoTemplate : 'No hay servicios por el momento'}
                     </div>
                 `;
                 if (resJson.cultos.length > 0) {
                     document.querySelectorAll('#culto div.cultos div.culto').forEach(culto => {
+                        // Si se esta en la interfaz admin, cargar eventlistener de Admin y retornar
+                        if(adminUI) {
+                            culto.addEventListener('click', async () => {
+                                document.querySelectorAll('div.culto').forEach(culto => {
+                                    culto.classList.remove('activo');
+                                });
+                                culto.classList.add('activo');
+                                await obtenerDatosDeAsistencia(culto.id)
+                            });
+                        }
+                        if(adminUI) return;
                         culto.addEventListener('click', e => {
                             // Detectar cual es seleccionado =====================
                             let soloOgrupo = Number(cantidadInput.value) <= 1 ? 1 : Number(cantidadInput.value);
