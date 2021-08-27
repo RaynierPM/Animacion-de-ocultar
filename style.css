@@ -172,6 +172,7 @@ main article#inicio {
     width: 75%;
     height: 100vh;
     max-width: 768px;
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
     justify-content: center;
