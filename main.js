@@ -124,6 +124,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ===== PASO 4 =====
     // Agradecimientos
     function darAgradecimientos(datos) {
+        document.querySelector('#agradecimiento .volver a').innerHTML 
+                = `<i class="bi bi-arrow-90deg-up"></i> Deshacer ( 11 )`;
         // console.log(datos)
         const { cantidadAsistencia } = datos;
         const objParaGuardar = {
@@ -168,7 +170,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(segundos >= 0) {
                 segundos -= 1;
                 document.querySelector('#agradecimiento .volver a').innerHTML 
-                    = `<i class="bi bi-arrow-90deg-up"></i> Deshacer ( ${segundos} )`; 
+                = `<i class="bi bi-arrow-90deg-up"></i> Deshacer ( ${segundos} )`; 
             }
             // Si el contador llega a 0, detener intervalo
             if(segundos <= 0) {
@@ -642,64 +644,124 @@ document.addEventListener('DOMContentLoaded', async () => {
                         ${resJson.cultos.length > 0? cultoTemplate : 'No hay servicios por el momento'}
                     </div>
                 `;
-                // Detectar clicks
-                document.querySelector('#culto').addEventListener('click', e => {
-                    // Detectar cual es seleccionado =====================
-                    let soloOgrupo = Number(cantidadInput.value) <= 1 ? 1 : Number(cantidadInput.value);
-                    // obtener culto ID
-                    let cultoId = e.target.parentElement.id,
-                        cantidad = 1;
-                    // Validad cantidad total
-                    cantidad = soloOgrupo > 1? 
-                                    Number(cantInvitadosInput.value) > 0 ? 
-                                    `${soloOgrupo + Number(cantInvitadosInput.value)} (Grupo)`
-                                    : `${soloOgrupo} (Grupo)`
-                               : Number(cantInvitadosInput.value) > 0 ?
-                                    `${soloOgrupo + Number(cantInvitadosInput.value)} (tu e Invitados)`
-                                    :`${soloOgrupo} (Solo tú)`;
+                if (resJson.cultos.length > 0) {
+                    document.querySelectorAll('#culto div.cultos div.culto').forEach(culto => {
+                        culto.addEventListener('click', e => {
+                            // Detectar cual es seleccionado =====================
+                            let soloOgrupo = Number(cantidadInput.value) <= 1 ? 1 : Number(cantidadInput.value);
+                            // obtener culto ID
+                            let cultoId = culto.id,
+                                cantidad = 1;
+                            // Validad cantidad total
+                            cantidad = soloOgrupo > 1? 
+                                            Number(cantInvitadosInput.value) > 0 ? 
+                                            `${soloOgrupo + Number(cantInvitadosInput.value)} (Grupo)`
+                                            : `${soloOgrupo} (Grupo)`
+                                    : Number(cantInvitadosInput.value) > 0 ?
+                                            `${soloOgrupo + Number(cantInvitadosInput.value)} (tu e Invitados)`
+                                            :`${soloOgrupo} (Solo tú)`;
 
-                    // validar si hay mas de 1 culto
-                    if(cultoId && cultoId.length > 5 && cultoId !== 'confirmado') {
-                        if(resJson.cultos.length && resJson.cultos.length > 1) {
-                            cultoSeleccionado = resJson.cultos.filter(culto => culto.id == cultoId)[0];
-                        }else {
-                            cultoSeleccionado = resJson.cultos[0];
-                        }
-                        // validar si hay culto
-                        if(cultoSeleccionado && cultoSeleccionado.id ){
-                            // Insertar datos al HTML
-                            servicioModal.nombre.innerText = cultoSeleccionado.nombre;
-                            servicioModal.tema.innerText = cultoSeleccionado.tema;
-                            servicioModal.hora.innerText = `${cultoSeleccionado.horaEmpieza} - ${cultoSeleccionado.horaTermina}`;
-                            if(tipoAsistencia.value == 'miembro') {
-                                document.querySelector('#servicioModal .asistencia').style.opacity = '1';
-                                servicioModal.cantidadAagregar.innerText = `+${ cantidad }`;
-                                servicioModal.asistenciaActual.innerText = cultoSeleccionado.asistenciaActual;
-                                servicioModal.asistenciaMaxima.innerText = cultoSeleccionado.asistenciaMaxima;
-                            }else {
-                                document.querySelector('#servicioModal .asistencia').style.opacity = '0';
+                            // validar si hay mas de 1 culto
+                            if(cultoId && cultoId.length > 5 && cultoId !== 'confirmado') {
+                                if(resJson.cultos.length && resJson.cultos.length > 1) {
+                                    cultoSeleccionado = resJson.cultos.filter(culto => culto.id == cultoId)[0];
+                                }else {
+                                    cultoSeleccionado = resJson.cultos[0];
+                                }
+                                // validar si hay culto
+                                if(cultoSeleccionado && cultoSeleccionado.id ){
+                                    // Insertar datos al HTML
+                                    servicioModal.nombre.innerText = cultoSeleccionado.nombre;
+                                    servicioModal.tema.innerText = cultoSeleccionado.tema;
+                                    servicioModal.hora.innerText = `${cultoSeleccionado.horaEmpieza} - ${cultoSeleccionado.horaTermina}`;
+                                    if(tipoAsistencia.value == 'miembro') {
+                                        document.querySelector('#servicioModal .asistencia').style.opacity = '1';
+                                        servicioModal.cantidadAagregar.innerText = `+${ cantidad }`;
+                                        servicioModal.asistenciaActual.innerText = cultoSeleccionado.asistenciaActual;
+                                        servicioModal.asistenciaMaxima.innerText = cultoSeleccionado.asistenciaMaxima;
+                                    }else {
+                                        document.querySelector('#servicioModal .asistencia').style.opacity = '0';
+                                    }
+                                    document.querySelector('#servicioModal #bien').value = cultoSeleccionado.id;
+                                    // Mostrar modal
+                                    servicioModal.modalHandle.show();
+                                }
                             }
-                            document.querySelector('#servicioModal #bien').value = cultoSeleccionado.id;
-                            // Mostrar modal
-                            servicioModal.modalHandle.show();
-                        }
-                    }
-                    // Detectar si el usuario está seguro
-                    // Detectar cuando cliquea confirmar
-                    if( e.target.id == 'confirmado' 
-                        || e.target.parentElement.id == 'confirmado' 
-                        || e.target.parentElement.parentElement.id == 'confirmado'){
-                        e.stopImmediatePropagation();
-                        // Agradecer
-                        darAgradecimientos({
-                            id: document.getElementById('bien').value,
-                            nombre: nombreInput.value,
-                            tipoAsistencia: document.getElementById('tipoAsistencia').value,
-                            cantidadAsistencia: soloOgrupo,
-                            invitados: Number(cantInvitadosInput.value)
-                        });
-                    }
-                })
+                            // Detectar si el usuario está seguro
+                            // Detectar cuando cliquea confirmar
+                            document.querySelector('#confirmado').addEventListener('click', e => {
+                                e.stopImmediatePropagation();
+                                // Agradecer
+                                darAgradecimientos({
+                                    id: document.getElementById('bien').value,
+                                    nombre: nombreInput.value,
+                                    tipoAsistencia: document.getElementById('tipoAsistencia').value,
+                                    cantidadAsistencia: soloOgrupo,
+                                    invitados: Number(cantInvitadosInput.value)
+                                })
+                                
+                            });
+                        })
+                    })
+                }
+                // Detectar clicks
+                // document.querySelector('#culto').addEventListener('click', e => {
+                //     // Detectar cual es seleccionado =====================
+                //     let soloOgrupo = Number(cantidadInput.value) <= 1 ? 1 : Number(cantidadInput.value);
+                //     // obtener culto ID
+                //     let cultoId = e.target.parentElement.id,
+                //         cantidad = 1;
+                //     // Validad cantidad total
+                //     cantidad = soloOgrupo > 1? 
+                //                     Number(cantInvitadosInput.value) > 0 ? 
+                //                     `${soloOgrupo + Number(cantInvitadosInput.value)} (Grupo)`
+                //                     : `${soloOgrupo} (Grupo)`
+                //                : Number(cantInvitadosInput.value) > 0 ?
+                //                     `${soloOgrupo + Number(cantInvitadosInput.value)} (tu e Invitados)`
+                //                     :`${soloOgrupo} (Solo tú)`;
+
+                //     // validar si hay mas de 1 culto
+                //     if(cultoId && cultoId.length > 5 && cultoId !== 'confirmado') {
+                //         if(resJson.cultos.length && resJson.cultos.length > 1) {
+                //             cultoSeleccionado = resJson.cultos.filter(culto => culto.id == cultoId)[0];
+                //         }else {
+                //             cultoSeleccionado = resJson.cultos[0];
+                //         }
+                //         // validar si hay culto
+                //         if(cultoSeleccionado && cultoSeleccionado.id ){
+                //             // Insertar datos al HTML
+                //             servicioModal.nombre.innerText = cultoSeleccionado.nombre;
+                //             servicioModal.tema.innerText = cultoSeleccionado.tema;
+                //             servicioModal.hora.innerText = `${cultoSeleccionado.horaEmpieza} - ${cultoSeleccionado.horaTermina}`;
+                //             if(tipoAsistencia.value == 'miembro') {
+                //                 document.querySelector('#servicioModal .asistencia').style.opacity = '1';
+                //                 servicioModal.cantidadAagregar.innerText = `+${ cantidad }`;
+                //                 servicioModal.asistenciaActual.innerText = cultoSeleccionado.asistenciaActual;
+                //                 servicioModal.asistenciaMaxima.innerText = cultoSeleccionado.asistenciaMaxima;
+                //             }else {
+                //                 document.querySelector('#servicioModal .asistencia').style.opacity = '0';
+                //             }
+                //             document.querySelector('#servicioModal #bien').value = cultoSeleccionado.id;
+                //             // Mostrar modal
+                //             servicioModal.modalHandle.show();
+                //         }
+                //     }
+                //     // Detectar si el usuario está seguro
+                //     // Detectar cuando cliquea confirmar
+                //     if( e.target.id == 'confirmado' 
+                //         || e.target.parentElement.id == 'confirmado' 
+                //         || e.target.parentElement.parentElement.id == 'confirmado'){
+                //         e.stopImmediatePropagation();
+                //         // Agradecer
+                //         darAgradecimientos({
+                //             id: document.getElementById('bien').value,
+                //             nombre: nombreInput.value,
+                //             tipoAsistencia: document.getElementById('tipoAsistencia').value,
+                //             cantidadAsistencia: soloOgrupo,
+                //             invitados: Number(cantInvitadosInput.value)
+                //         });
+                //     }
+                // })
                 document.querySelector('#bien').addEventListener('click', e => {
                     if(e.target.id == 'bien') {
                         e.preventDefault();

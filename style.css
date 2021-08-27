@@ -168,7 +168,9 @@ main {
     }
 }
 main article#inicio {
-    width: 90%;
+    width: 75%;
+    height: 100vh;
+    max-width: 768px;
 }
 main article#inicio p {
     font-weight: bold;
@@ -318,7 +320,7 @@ main div.botones > a.boton:hover {
 /* article#miembro */
 
 article#asistencia {
-    position: absolute;
+    position: static;
     top: 100%;
     left: 0;
 
@@ -423,7 +425,7 @@ article#culto {
     width: 100vw;
     height: 100vh;
 
-    position: absolute;
+    position: static;
     top: 200%;
     left: 0;
 
@@ -520,7 +522,7 @@ article#agradecimiento {
     width: 100vw;
     height: 100vh;
 
-    position: absolute;
+    position: static;
     top: 300%;
     left: 0;
 
