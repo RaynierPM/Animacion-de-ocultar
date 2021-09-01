@@ -154,8 +154,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.querySelectorAll('article.articleFocused').forEach( article => {
                     article.classList.remove('articleFocused');
                 })
-                setTimeout(() => {    
-                    if( document.querySelector(window.location.hash) 
+                setTimeout(() => {
+                    if( window.location.hash !== '#header' 
+                        && document.querySelector(window.location.hash) 
                         && !document.querySelector(window.location.hash).classList.contains('articleFocused') ){
                         document.querySelector(window.location.hash).classList.add('articleFocused');
                     }
