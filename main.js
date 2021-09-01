@@ -48,23 +48,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         },
         cultoSeleccionado = null,
         recordatorio = localStorage.getItem('iglesiaDeDiosBelloCampoAsistencia'),
-        adminUI = document.querySelector('.administracion')? true : false;
+        adminUI = document.querySelector('.administracion')? true : false,
+        datoRepetido = false;
 
     // resetear todo 
     window.location.hash = '';
+    
     // deshabilitar inputs
     document.querySelectorAll('#asistencia input').forEach(input => {
         input.disabled = true;
     });
     
-    // interfaz ADMIN 
+    // ===== interfaz ADMIN ======
     if(adminUI) {
+
+        
+        // ocultar spinner
+        setTimeout(() => {
+            document.querySelector('.spinnerGeneral').style.opacity = '0';
+        }, 1000);
+        
         let inputTimeOut;
-        document.querySelector('.administracion input#code').addEventListener('input', async ev => {            
+        document.querySelector('.administracion input#code').addEventListener('input', async ev => {  
+            valdiarCodigoAdmin(ev);
+        });
+        // Validar si ya está logueado
+        if(sessionStorage.getItem('iglesiaDeDiosAdmin')){
+            document.querySelector('.administracion input#code').value = sessionStorage.getItem('iglesiaDeDiosAdmin');
+            valdiarCodigoAdmin(ev = { target : document.querySelector('.administracion input#code') });
+        }
+        async function valdiarCodigoAdmin(ev) {
+            
             clearTimeout(inputTimeOut);
             inputTimeOut = setTimeout(async () => {
                 let validarCodigo = /^[a-z 0-9,.'-]+$/i;
-                if(ev.target.value.length < 2 || !validarCodigo.test(ev.target.value)) return;
+                // Validar caracteres
+                if(ev.target.value.length < 2 || !validarCodigo.test(ev.target.value)) 
+                    return ev.target.style.border = '4px solid var(--rojo)';
                 // VALIDAR CODIGO ADMIN
                 let url = `https://iglesiadedios-bellocampo.herokuapp.com/validar-codigo/${ev.target.value.trim()}`;
                 let res = await fetch(url, {
@@ -78,26 +98,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                     let pElement = document.querySelector('p.error')?
                                             document.querySelector('p.error') 
                                             : document.createElement('p');
-
+    
                     // agregar transition
                     pElement.style.transition = 'all .5s ease-in-out';
-
+    
                     // Ver si hay error
                     if(resJson.error) {                        
                         // Mostrar error
                         pElement.className = 'error text-center mt-3';
                         pElement.style.color = 'var(--rojo)';
                         pElement.innerHTML = `Código Invalido: ${resJson.error.mensaje}`;
-
+    
                         ev.target.style.border = '4px solid var(--rojo)';
                         ev.target.parentElement.appendChild(pElement);
-
+    
                         return; 
                     }else {
                         // Mostrar mensaje de que todo está bien
                         ev.target.style.border = '4px solid #000';
                         ev.target.disabled = true;
-
+    
                         pElement.style.color = 'var(--usafaBlue)';
                         pElement.innerHTML = 'Validado correctamente <i class="bi bi-check-lg"></i>';
                         setTimeout(() => {
@@ -105,7 +125,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                             setTimeout(() => {
                                 pElement.remove();
                             }, 1500);
+                            // ocultar spiner
+                            document.querySelector('.spinnerGeneral').style.opacity = '0';
                         }, 4000);
+    
+                        // Activar buscador de asistencias
+                        buscarAsistencia();
     
                         // obtener cultos
                         await getDataCulto(datos = {
@@ -113,12 +138,31 @@ document.addEventListener('DOMContentLoaded', async () => {
                             tipoAsistencia: 'admin'
                         });
                         ev.target.style.display = 'none';
+    
+                        // Guardar codigo
+                        sessionStorage.setItem('iglesiaDeDiosAdmin', ev.target.value.trim());
                     }
                 })
             }, 500);
-        });
+        }
     }
 
+    // Priorizar los Article
+    if(!adminUI){
+        document.querySelectorAll('section a, section input, section button').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('article.articleFocused').forEach( article => {
+                    article.classList.remove('articleFocused');
+                })
+                setTimeout(() => {    
+                    if( document.querySelector(window.location.hash) 
+                        && !document.querySelector(window.location.hash).classList.contains('articleFocused') ){
+                        document.querySelector(window.location.hash).classList.add('articleFocused');
+                    }
+                }, 2000);
+            })
+        })
+    }
 
     // ===== PASO 0 =====
     // Validar si hay un recordatorio
@@ -270,7 +314,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             let timeout;
             async function guardarAsistencia(datos) {
                 clearTimeout(timeout)
-                timeout = setTimeout(async () => {                
+                timeout = setTimeout(async () => {       
+                    // Borrar boton de confirmar, evitar spam 
+                    document.querySelector('#confirmado').remove();        
                     // Destructuring
                     const { servicio, asistencia } = datos;
         
@@ -308,9 +354,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log( await res.json() );
     }
     async function obtenerDatosDeAsistencia(cultoId) {
-        let validarId = /^[a-z 0-9,.'-_]+$/i;
-        console.log(cultoId);
+        let validarId = /^[a-z 0-9,.'-_]+$/i,
+            busqueda = document.getElementById('busqueda')? document.getElementById('busqueda') : false;
+
         if(cultoId.length < 2 || !validarId.test(cultoId) ) return;
+
+        // Si hay datos en el input de busqueda, hacer busquead
+        if(busqueda && busqueda.value.length && busqueda.value.length > 0) 
+        return buscarAsistencia({ query: busqueda.value, cultoId});
+
+        // Si el UI admin, mostrar interfaz
+        if(adminUI) {
+            // Mostrar interfaz
+            document.querySelectorAll('#filtrar, #listadoAsistencia').forEach(el => {
+                el.classList.remove('d-none');
+            })            
+        }
+
+        // Mostrar spinner
+        document.querySelector('.spinnerGeneral').style.opacity = '1';
 
         // Consultar datos
         let url = `https://iglesiadedios-bellocampo.herokuapp.com/obtener-datos-asistencia/${cultoId}`;
@@ -318,57 +380,172 @@ document.addEventListener('DOMContentLoaded', async () => {
             method: 'GET'
         }).catch(err => console.log(err));
     
+        // Obtener Json de respuesta
         res.json().then(resJson => {
-            let listaAsistencia = document.getElementById('listadoAsistencia'),
-                miembrosElement = document.getElementById('miembros'),
-                visitasElement = document.getElementById('visitas');
-
-            miembrosElement.innerHTML = '';
-            visitasElement.innerHTML = '';
-
-            console.log( resJson );
-            resJson.datosAsistencia.forEach(datoAsistencia => {
-
-                
-                console.log(datoAsistencia.fechaCreacion)
-                console.log(moment(datoAsistencia.fechaCreacion, '' ).format('dddd LL, h:mm a'))
-                if(datoAsistencia.tipoAsistencia == 'visita') {
-                    visitasElement.innerHTML += `
-                        <div class="card shadow mt-4">
-                            <h6 class="nombreAsistencia m-0 text-capitalize fw-bold" style="color: var(--usafaBlue);">
-                                ${ datoAsistencia.cantidad > 1 || datoAsistencia.invitados > 0 ?
-                                    '<i class="bi bi-people-fill"></i>'
-                                    :'<i class="bi bi-person-fill"></i>'}
-                                ${datoAsistencia.nombre}
-                            </h6>
-                            <p class="cantidad">
-                                ${datoAsistencia.cantidad > 1? 
-                                    'Grupo de '+datoAsistencia.cantidad : '' }
-                            </p>
-
-                        </div>
-                    `;
-                }
-                if(datoAsistencia.tipoAsistencia == 'miembro'){
-                    miembrosElement.innerHTML += `
-                        <div class="card shadow mt-4">
-                            <h6 class="nombreAsistencia m-0 text-capitalize fw-bold" style="color: var(--usafaBlue);">
-                                ${ datoAsistencia.cantidad > 1 || datoAsistencia.invitados > 0 ?
-                                    '<i class="bi bi-people-fill"></i>'
-                                    :'<i class="bi bi-person-fill"></i>'}
-                                ${datoAsistencia.nombre}
-                            </h6>
-                            <p class="invitados text-muted">${datoAsistencia.invitados} invitados</p>
-                            <p class="cantidad fw-bold">
-                                ${datoAsistencia.cantidad > 1? 
-                                    'Grupo de '+datoAsistencia.cantidad : '' }
-                            </p>
-                        </div>
-                    `;
-                }
-            })
+            agregarCardsDeAsistenciaParaAdmin(resJson.datosAsistencia);
+            // ocultar spinner
+            setTimeout(() => {
+                document.querySelector('.spinnerGeneral').style.opacity = '0';
+            }, 1000);
         })
 
+    }
+    function agregarCardsDeAsistenciaParaAdmin(datosAsistencia = [], mostrarServicioPerteneciente = false) {
+        
+        let miembrosElement = document.getElementById('miembros'),
+            visitasElement = document.getElementById('visitas');
+        
+        // <p class="m-0" style="color: var(--rojoSalsa)">${resultado.Culto? resultado.Culto.nombre : 'El servicio que se agendó ya no existe'}</p>
+        // <small class="text-muted mb-2">
+        // ${resultado.Culto?
+        // resultado.Culto.horaEmpieza+' - '+resultado.Culto.horaTermina : ''}
+        // </small>
+        miembrosElement.innerHTML = datosAsistencia.filter(dato => dato.tipoAsistencia == 'miembro').length < 1?
+                                    'No hay miembros registrados a su busqueda' : '';
+        visitasElement.innerHTML = datosAsistencia.filter(dato => dato.tipoAsistencia == 'visita').length < 1?
+                                    'No hay visitas registradas a su busqueda' : '';
+        
+        datosAsistencia.forEach( datoAsistencia => {
+            moment.locale('es')
+            let fechaCreacion = moment(datoAsistencia.fechaCreacion ).format('dddd LL, h:mm a');
+            if(datoAsistencia.tipoAsistencia == 'visita') {
+                visitasElement.innerHTML += `
+                    <div class="card shadow mt-4">
+                        <h6 class="nombreAsistencia m-0 text-capitalize fw-bold" style="color: var(--usafaBlue);">
+                            ${ datoAsistencia.cantidad > 1 || datoAsistencia.invitados > 0 ?
+                                '<i class="bi bi-people-fill pe-2"></i>'
+                                :'<i class="bi bi-person-fill pe-2"></i>'}
+                            ${datoAsistencia.nombre}
+                        </h6>
+                        <p class="cantidad">
+                            ${datoAsistencia.cantidad > 1? 
+                                'Grupo de '+datoAsistencia.cantidad : '' }
+                        </p>
+                        <p class="text-primary">Cantidad total: ${datoAsistencia.cantidad + datoAsistencia.invitados}</p>
+                        <small class="mt-2 text-muted">
+                            <span class="fw-bold d-block">Agendó: </span>
+                            ${fechaCreacion}
+                        </small>
+                    </div>
+                `;
+            }
+            if(datoAsistencia.tipoAsistencia == 'miembro'){
+                miembrosElement.innerHTML += `
+                    <div class="card shadow mt-4">
+                        <h6 class="nombreAsistencia m-0 text-capitalize fw-bold" style="color: var(--usafaBlue);">
+                            ${ datoAsistencia.cantidad > 1 || datoAsistencia.invitados > 0 ?
+                                '<i class="bi bi-people-fill pe-2"></i>'
+                                :'<i class="bi bi-person-fill pe-2"></i>'}
+                            ${datoAsistencia.nombre}
+                        </h6>
+                        <p class="invitados text-muted">
+                            ${datoAsistencia.invitados > 1? 
+                                datoAsistencia.invitados+' invitados' : datoAsistencia.invitados+' invitado'}
+                        </p>
+                        <p class="cantidad fw-bold">
+                            ${datoAsistencia.cantidad > 1? 
+                                'Grupo de '+datoAsistencia.cantidad : '' }
+                        </p>
+                        <p class="text-primary">Cantidad total: ${datoAsistencia.cantidad + datoAsistencia.invitados}</p>
+                        <small class="mt-2 text-muted">
+                            <span class="fw-bold d-block">Agendó: </span>
+                            ${fechaCreacion}
+                        </small>
+                    </div>
+                `;
+            }        
+        });
+    }
+    // buscar asistencia
+    async function buscarAsistencia(datosExternos = false) {
+        let elementoHTML = document.getElementById('busqueda')? 
+                                    document.getElementById('busqueda') 
+                                    : document.querySelector('#nombre');
+        let timeout;
+        // mostrar spinner
+        if(adminUI) document.querySelector('.spinnerGeneral').style.opacity = '1';
+
+        // Validar si los datos son insertados manual
+        if(datosExternos){
+            await consultarBusqueda(datosExternos.query, datosExternos.cultoId);
+        }else {
+            // Detectar lo que el usuario quiere Buscar
+            elementoHTML.addEventListener('input', async ev => {
+            
+                // Obtener datos de busqueda
+                let query = ev.target.value.length && ev.target.value.length > 0? 
+                                ev.target.value : null;
+
+                // mostrar spiner
+                if(adminUI) {
+                    document.querySelector('.spinnerGeneral').style.opacity = '1';
+                    // Hacer focus a la busqueda
+                    clearTimeout(timeout)                    
+                    timeout = setTimeout( async () => {
+                        window.location.assign(window.location.pathname+'#filtrar');
+                        setTimeout(() => {
+                            ev.target.focus();
+                        }, 500);
+                    }, 1000);
+                    //============================
+                    let cultoId = document.querySelector('.activo')? 
+                                    document.querySelector('.activo').id : 'null';
+        
+                    // Si query viene vacio, obtener todos los datos
+                    if(query == null) return await obtenerDatosDeAsistencia(cultoId);     
+                    
+                    // consultar
+                    await consultarBusqueda(query, cultoId);
+                }else if(query && query.length > 5){
+                        await consultarBusqueda(query, 'todo');
+                }
+            });        
+        }
+
+        async function consultarBusqueda(query, cultoId) {
+            let url = `https://iglesiadedios-bellocampo.herokuapp.com/buscar-asistencia/${query}/${cultoId}`;
+            let res = await fetch(url, {
+                method: 'GET'
+            }).catch(err => console.log(err));
+        
+            // Obtener Json de respuesta
+            res.json().then(resJson => {  
+                if(adminUI){
+                    agregarCardsDeAsistenciaParaAdmin(resJson.resultados, true);
+                    // ocultar spinner
+                    setTimeout(() => {
+                        document.querySelector('.spinnerGeneral').style.opacity = '0';
+                    }, 1000);
+                }else {
+                    // console.log(resJson);
+                    if(resJson.resultados.length <= 0){
+                        document.getElementById('listaAgregados').innerHTML = '';
+                        datoRepetido = false;
+                    }else {
+                        resJson.resultados.forEach(asistencia => {
+                            if(asistencia.Culto){
+                                datoRepetido = true;
+                                toggleError(nombreInput, 'error', false);
+                                document.getElementById('listaAgregados').innerHTML = `
+                                    <div class="ps-2 text-danger">
+                                        <span class="d-block">
+                                            Ya agregado
+                                        </span>
+                                        <p class="text-capitalize">
+                                            ${asistencia.nombre} 
+                                            - 
+                                            ${asistencia.Culto? 
+                                                asistencia.Culto.nombre +' - '+ asistencia.Culto.horaEmpieza +' - '+ asistencia.Culto.horaTermina 
+                                                : 'El servicio al que se agendo no existe'}
+                                        </p>
+                                    </div>
+                                `;
+                            }
+                        });
+                    }
+                }  
+            });
+        }
     }
     async function getVersiculoBiblico() {
         // let url = 'https://dailyverses.net/get/random?language=rvr60&isdirect=1&position&fbclid=IwAR204J5eGHlbOIPBf68yXd_KMY2cA4yXqcT6XFPcMqRWpkom7MtlcZm2fKc'+ Math.floor(Math.random() * 201) + '&url=' + window.location.hostname
@@ -444,6 +621,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Guardar tipo de asistencia
                 // Save attendance
                 tipoAsistencia.value = resJson.tipoAsistencia;
+
+                // Activar buscador de asistencia
+                buscarAsistencia();
     
                 // Cargar UI
                 // Load UI
@@ -535,7 +715,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         function nombreApellidoValido(datos) {  
             //Validar nombre y apellido, palabra por palabra   
             let nombreYapellido = datos.split(' ');
-            let validarNombreApellido = /^[a-z ,.'-]+$/i;
+            let validarNombreApellido = /^[a-z ,.'-ñ]+$/i;
             let validado = nombreYapellido.filter(palabra => {
                 if(palabra.length > 2 && validarNombreApellido.test(palabra) ) {
                     return palabra
@@ -543,36 +723,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }) 
             // Retornar si todo esta bien o no
             if(validado.length >= 2) {return true} else return false;
-        }
-        function invitadosToggle(abrirCerrar = 'cerrar') {
-            let btn = document.querySelector('#asistencia button');    
-            // Si no es miembro, no puede llevar invitados
-            if(abrirCerrar === false) {    
-                btn.classList.add('d-none');
-                btn.classList.remove('cerrar');
-                btn.classList.add('abrir');
-    
-                cantInvitadosInput.classList.add('d-none');
-                cantInvitadosInput.classList.remove('d-block');
-                return;
-            }
-            
-            if(abrirCerrar == 'abrir'){
-                btn.classList.remove('abrir');
-                btn.classList.remove('d-none');
-                btn.classList.add('cerrar');
-                
-                cantInvitadosInput.classList.remove('d-none');
-                cantInvitadosInput.value = cantInvitadosInput.value > 1? cantInvitadosInput.value : 1;
-                btn.innerHTML = `Quitar invitados <i class="bi bi-dash-lg"></i>`;
-            }else if(abrirCerrar == 'cerrar'){
-                btn.classList.remove('cerrar');
-                btn.classList.add('abrir');
-                
-                cantInvitadosInput.value = 0;
-                cantInvitadosInput.classList.add('d-none');
-                btn.innerHTML = `Añadir invitados <i class="bi bi-plus-lg"></i>`;
-            }
         }
         function seleccionarSolo() {
     
@@ -618,60 +768,89 @@ document.addEventListener('DOMContentLoaded', async () => {
                 toggleError(null, 'exito', false)
             };
         }
-        let timeout;
-        function toggleError(elemento, errorOexito, animacion) {
-            if(elemento == null && errorOexito == 'exito') {
-                // despues de escribir el nombre muestra opcion para agregar invitado 
-                if( tipoAsistencia.value == 'miembro' && document.querySelector('.formAsistencia .abrir.d-none') ) {
-                    document.querySelector('.formAsistencia .abrir').classList.remove('d-none');
-                    if(Number( cantInvitadosInput.value ) >= 1){
-                        invitadosToggle('abrir')
-                    }else invitadosToggle('cerrar');
-                }
-                
-                // Si todo está bien, despues de un rato disparar animation del btn siguiente
-                clearTimeout(timeout);
-                timeout = setTimeout(() => {
-                    if( soloElement.checked && !grupoElement.checked && nombreInput.value.length < 3 ) {
-                        return
-                    }else if( grupoElement.checked && !soloElement.checked 
-                        && nombreInput.value.length < 3 
-                        ||grupoElement.checked && !soloElement.checked 
-                        && cantidadInput.value.length < 1 && Number(cantidadInput.value) < 2 ) 
-                        return;
+    }
+    function invitadosToggle(abrirCerrar = 'cerrar') {
+        let btn = document.querySelector('#asistencia button');    
+        // Si no es miembro, no puede llevar invitados
+        if(abrirCerrar === false) {    
+            btn.classList.add('d-none');
+            btn.classList.remove('cerrar');
+            btn.classList.add('abrir');
 
-                    // mostrar siguiente 
-                    document.querySelector('#asistencia .siguiente').classList.add('siguienteANIMATION');
-                document.querySelector('#asistencia .siguiente .contenido').classList.add('siguienteContenidoANIMATION')
-                }, 700);
-                return;
+            cantInvitadosInput.classList.add('d-none');
+            cantInvitadosInput.classList.remove('d-block');
+            return;
+        }
+        
+        if(abrirCerrar == 'abrir'){
+            btn.classList.remove('abrir');
+            btn.classList.remove('d-none');
+            btn.classList.add('cerrar');
+            
+            cantInvitadosInput.classList.remove('d-none');
+            cantInvitadosInput.value = cantInvitadosInput.value > 1? cantInvitadosInput.value : 1;
+            btn.innerHTML = `Quitar invitados <i class="bi bi-dash-lg"></i>`;
+        }else if(abrirCerrar == 'cerrar'){
+            btn.classList.remove('cerrar');
+            btn.classList.add('abrir');
+            
+            cantInvitadosInput.value = 0;
+            cantInvitadosInput.classList.add('d-none');
+            btn.innerHTML = `Añadir invitados <i class="bi bi-plus-lg"></i>`;
+        }
+    }
+    let timeoutErrorAsistencia;
+    function toggleError(elemento, errorOexito, animacion) {
+        if(elemento == null && errorOexito == 'exito' && !datoRepetido) {
+            // despues de escribir el nombre muestra opcion para agregar invitado 
+            if( tipoAsistencia.value == 'miembro' && document.querySelector('.formAsistencia .abrir.d-none') ) {
+                document.querySelector('.formAsistencia .abrir').classList.remove('d-none');
+                if(Number( cantInvitadosInput.value ) >= 1){
+                    invitadosToggle('abrir')
+                }else invitadosToggle('cerrar');
             }
-            // Ver cual se valida
-            if(elemento.id == 'nombre' || elemento.id == 'cantidad') {
-                // exito
-                if(errorOexito == 'exito') {
-                    // resetear input de nombre
-                    elemento.style.border = '5px solid #000';
+            // Si todo está bien, despues de un rato disparar animation del btn siguiente
+            clearTimeout(timeoutErrorAsistencia);
+            timeoutErrorAsistencia = setTimeout(() => {
+                if( soloElement.checked && !grupoElement.checked && nombreInput.value.length < 3 ) {
+                    return
+                }else if( grupoElement.checked && !soloElement.checked 
+                    && nombreInput.value.length < 3 
+                    ||grupoElement.checked && !soloElement.checked 
+                    && cantidadInput.value.length < 1 && Number(cantidadInput.value) < 2 ) 
+                    return;
+
+                // mostrar siguiente 
+                document.querySelector('#asistencia .siguiente').classList.add('siguienteANIMATION');
+            document.querySelector('#asistencia .siguiente .contenido').classList.add('siguienteContenidoANIMATION')
+            }, 700);
+            return;
+        }
+        // Ver cual se valida
+        if(elemento && elemento.id == 'nombre' || elemento && elemento.id == 'cantidad') {
+            // exito
+            if(errorOexito == 'exito' && !datoRepetido) {
+                // resetear input de nombre
+                elemento.style.border = '5px solid #000';
+                elemento.classList.remove('errorInput');
+                elemento.style.outlineColor = '';
+            }
+            // error
+            if(errorOexito == 'error') {
+                if(animacion){
                     elemento.classList.remove('errorInput');
-                    elemento.style.outlineColor = '';
+                    setTimeout(() => {
+                        elemento.classList.add('errorInput');
+                    }, 500);
                 }
-                // error
-                if(errorOexito == 'error') {
-                    if(animacion){
-                        elemento.classList.remove('errorInput');
-                        setTimeout(() => {
-                            elemento.classList.add('errorInput');
-                        }, 500);
-                    }
-                    elemento.style.border = '5px solid var(--rojoSalsa)';
-                    elemento.style.outlineColor = 'var(--rojoSalsa)';
-                    // document.querySelector('.formAsistencia .abrir').classList.add('d-none');
-                    invitadosToggle(false);
-                    // setTimeout(() => {
-                        document.querySelector('#asistencia .siguiente').classList.remove('siguienteANIMATION');
-                        document.querySelector('#asistencia .siguiente .contenido').classList.remove('siguienteContenidoANIMATION')
-                    // }, 500);
-                }
+                elemento.style.border = '5px solid var(--rojoSalsa)';
+                elemento.style.outlineColor = 'var(--rojoSalsa)';
+                // document.querySelector('.formAsistencia .abrir').classList.add('d-none');
+                invitadosToggle(false);
+                // setTimeout(() => {
+                    document.querySelector('#asistencia .siguiente').classList.remove('siguienteANIMATION');
+                    document.querySelector('#asistencia .siguiente .contenido').classList.remove('siguienteContenidoANIMATION')
+                // }, 500);
             }
         }
     }
@@ -814,7 +993,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     culto.classList.remove('activo');
                                 });
                                 culto.classList.add('activo');
-                                await obtenerDatosDeAsistencia(culto.id)
+                                await obtenerDatosDeAsistencia(culto.id);
                             });
                         }
                         if(adminUI) return;
@@ -876,64 +1055,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         })
                     })
                 }
-                // Detectar clicks
-                // document.querySelector('#culto').addEventListener('click', e => {
-                //     // Detectar cual es seleccionado =====================
-                //     let soloOgrupo = Number(cantidadInput.value) <= 1 ? 1 : Number(cantidadInput.value);
-                //     // obtener culto ID
-                //     let cultoId = e.target.parentElement.id,
-                //         cantidad = 1;
-                //     // Validad cantidad total
-                //     cantidad = soloOgrupo > 1? 
-                //                     Number(cantInvitadosInput.value) > 0 ? 
-                //                     `${soloOgrupo + Number(cantInvitadosInput.value)} (Grupo)`
-                //                     : `${soloOgrupo} (Grupo)`
-                //                : Number(cantInvitadosInput.value) > 0 ?
-                //                     `${soloOgrupo + Number(cantInvitadosInput.value)} (tu e Invitados)`
-                //                     :`${soloOgrupo} (Solo tú)`;
-
-                //     // validar si hay mas de 1 culto
-                //     if(cultoId && cultoId.length > 5 && cultoId !== 'confirmado') {
-                //         if(resJson.cultos.length && resJson.cultos.length > 1) {
-                //             cultoSeleccionado = resJson.cultos.filter(culto => culto.id == cultoId)[0];
-                //         }else {
-                //             cultoSeleccionado = resJson.cultos[0];
-                //         }
-                //         // validar si hay culto
-                //         if(cultoSeleccionado && cultoSeleccionado.id ){
-                //             // Insertar datos al HTML
-                //             servicioModal.nombre.innerText = cultoSeleccionado.nombre;
-                //             servicioModal.tema.innerText = cultoSeleccionado.tema;
-                //             servicioModal.hora.innerText = `${cultoSeleccionado.horaEmpieza} - ${cultoSeleccionado.horaTermina}`;
-                //             if(tipoAsistencia.value == 'miembro') {
-                //                 document.querySelector('#servicioModal .asistencia').style.opacity = '1';
-                //                 servicioModal.cantidadAagregar.innerText = `+${ cantidad }`;
-                //                 servicioModal.asistenciaActual.innerText = cultoSeleccionado.asistenciaActual;
-                //                 servicioModal.asistenciaMaxima.innerText = cultoSeleccionado.asistenciaMaxima;
-                //             }else {
-                //                 document.querySelector('#servicioModal .asistencia').style.opacity = '0';
-                //             }
-                //             document.querySelector('#servicioModal #bien').value = cultoSeleccionado.id;
-                //             // Mostrar modal
-                //             servicioModal.modalHandle.show();
-                //         }
-                //     }
-                //     // Detectar si el usuario está seguro
-                //     // Detectar cuando cliquea confirmar
-                //     if( e.target.id == 'confirmado' 
-                //         || e.target.parentElement.id == 'confirmado' 
-                //         || e.target.parentElement.parentElement.id == 'confirmado'){
-                //         e.stopImmediatePropagation();
-                //         // Agradecer
-                //         darAgradecimientos({
-                //             id: document.getElementById('bien').value,
-                //             nombre: nombreInput.value,
-                //             tipoAsistencia: document.getElementById('tipoAsistencia').value,
-                //             cantidadAsistencia: soloOgrupo,
-                //             invitados: Number(cantInvitadosInput.value)
-                //         });
-                //     }
-                // })
                 document.querySelector('#bien').addEventListener('click', e => {
                     if(e.target.id == 'bien') {
                         e.preventDefault();

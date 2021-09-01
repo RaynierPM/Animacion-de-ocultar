@@ -31,6 +31,9 @@
     -webkit-animation: sk-bouncedelay 1.4s infinite ease-in-out both;
     animation: sk-bouncedelay 1.4s infinite ease-in-out both;
   }
+  .spinnerGeneral > div {
+    background-color: var(--rojoSalsa);
+  }
   
   .spinner .bounce1 {
     -webkit-animation-delay: -0.32s;
@@ -170,7 +173,7 @@ main {
 } */
 main article#inicio {
     width: 75%;
-    height: 100vh;
+    height: 85vh;
     max-width: 768px;
     margin: 0 auto;
     display: flex;
@@ -326,8 +329,6 @@ main div.botones > a.boton:hover {
 
 article#asistencia {
     position: static;
-    top: 100%;
-    left: 0;
 
     background-color: var(--sonicSilver);
     background-color: var(--grisito);
@@ -440,7 +441,7 @@ article#culto {
 div.culto {
     transition: all .2s linear;
 
-    box-shadow: var(--sonicSilver) 2px 2px 10px ;
+    box-shadow: #bebebe 2px 2px 10px ;
     border-radius: 17px;
     cursor: pointer;
     overflow: hidden;
@@ -542,7 +543,13 @@ article#agradecimiento {
     padding-top: 1.4rem;
 }
 
-
+/* ======PRIORIZAR ARTICLE ======== */
+.articleFocused {
+    position: fixed!important;
+    top: 0!important;
+    z-index: 100!important;
+}
+/* ========================= */
 /* article#agradecimiento div.culto {
     width: 
 } */
@@ -570,8 +577,19 @@ article#agradecimiento {
 #listadoAsistencia .card p {
     margin: 0px;
 }
+#listadoAsistencia .card .nombreAsistencia{
+    display: flex;
+    align-items: center;
+}
+#listadoAsistencia .card .nombreAsistencia i {
+    font-size: 2rem;
+}
 #listadoAsistencia .card p.cantidad {
     color: var(--rojoSalsa);
+}
+#asistenciasRegistradas {
+    max-height: 400px;
+    overflow-y: scroll;
 }
 body#admin {
     overflow-y: scroll;
@@ -584,7 +602,8 @@ body#admin {
 
 
 footer {
-    position: absolute;
+    /* position: absolute; */
+    height: 15vh;
     bottom: 0;
     left: 0;
 
