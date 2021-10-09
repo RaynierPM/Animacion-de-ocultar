@@ -9,8 +9,8 @@ var pseudoFondo = {
         document.querySelector('.menu').addEventListener('click', e => {
             // Si la pantalla es menor o igual al breakpoint y se clickea uno de los botones predefinidos
             // Entonces el aparece el sub menu y detras de el un fondo negro traslucido clickeable
-            if ((e.target.classList.contains(this.botones[0]) 
-            || e.target.classList.contains(this.botones[1])) && window.innerWidth <= this.breakpoint) {
+            if (((e.target.classList.contains(this.botones[0]) 
+            || e.target.classList.contains(this.botones[1])) && window.innerWidth <= this.breakpoint) && !e.target.disabled) {
                 if (this.fondo.classList.contains('d-block')){
                     // Si tiene la clase block elimina su color para crear un animacion y luego espera 
                     //300ms para desaparecerlo de pantalla
@@ -19,11 +19,20 @@ var pseudoFondo = {
                 }else {
                     this.abrir();
                 }
-            } 
+                this.botones.forEach(element => {
+                    document.querySelector(`.${element}`).disabled = true;
+                });
+            }
         });
 
         this.fondo.addEventListener('click', e => {
             this.cerrar()
+        });
+
+        this.fondo.addEventListener('transitionend', () => {
+            this.botones.forEach(element => {
+                document.querySelector(`.${element}`).disabled = false;
+            });
         });
     },
     cerrar() {
