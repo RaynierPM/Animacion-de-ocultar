@@ -1,4 +1,5 @@
 var pseudoFondo = {
+    timeOut: null,
     fondo: document.querySelector('.pseudoFondo'),
     subMenu: document.querySelector('.subMenu'),
     botones: ['search-toggle-menu', 'toggle-menu'],
@@ -9,41 +10,36 @@ var pseudoFondo = {
         document.querySelector('.menu').addEventListener('click', e => {
             // Si la pantalla es menor o igual al breakpoint y se clickea uno de los botones predefinidos
             // Entonces el aparece el sub menu y detras de el un fondo negro traslucido clickeable
-            if (((e.target.classList.contains(this.botones[0]) 
-            || e.target.classList.contains(this.botones[1])) && window.innerWidth <= this.breakpoint) && !e.target.disabled) {
-                if (this.fondo.classList.contains('d-block')){
-                    // Si tiene la clase block elimina su color para crear un animacion y luego espera 
-                    //300ms para desaparecerlo de pantalla
-                    this.cerrar();
-
-                }else {
-                    this.abrir();
-                }
-                this.botones.forEach(element => {
-                    document.querySelector(`.${element}`).disabled = true;
-                });
+            if ((e.target.classList.contains(this.botones[0]) 
+            || e.target.classList.contains(this.botones[1])) && window.innerWidth <= this.breakpoint) {
+                clearTimeout(this.timeOut);
+                this.timeOut = setTimeout(() => {
+                    if (this.fondo.classList.contains('d-block')){
+                        // Si tiene la clase block elimina su color para crear un animacion y luego espera 
+                        // 300ms para desaparecerlo de pantalla
+                        this.desaparecer();
+                    }else {
+                        this.aparecer();
+                    }
+                }, 300)
             }
         });
 
         this.fondo.addEventListener('click', e => {
-            this.cerrar()
+            this.desaparecer()
         });
 
-        this.fondo.addEventListener('transitionend', () => {
-            this.botones.forEach(element => {
-                document.querySelector(`.${element}`).disabled = false;
-            });
-        });
+        this.fondo.addEventListener('transitionend', () => {console.log()})
     },
-    cerrar() {
+    desaparecer() {
         this.subMenu.style.opacity = '0';
         this.fondo.style.background = '#0000';
         setTimeout(()=> {this.fondo.classList.remove('d-block');this.subMenu.classList.remove('d-block');}, 300)
     },
-    abrir() {
+    aparecer() {
         this.subMenu.classList.add('d-block')
         this.fondo.classList.add('d-block')
-        setTimeout(()=> {this.fondo.style.background = '#000';this.subMenu.style.opacity = '1';}, 300)
+        setTimeout(()=> {this.fondo.style.background = '#000';this.subMenu.style.opacity = '1';}, 10)
     }
 }
 
