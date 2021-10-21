@@ -55,7 +55,6 @@ var slider = {
                     left: this.contenedorCarrusel.scrollLeft - this.desplazamiento,
                     behavior: 'smooth'
                 });
-                console.log('click')
                 
             }else if(e.target.classList.contains('luego')) {
                 this.contenedorCarrusel.scrollTo({
@@ -63,7 +62,6 @@ var slider = {
                     left: this.contenedorCarrusel.scrollLeft + this.desplazamiento,
                     behavior: 'smooth'
                 });
-                console.log('click')
             }   
 
         });
@@ -71,6 +69,8 @@ var slider = {
         window.addEventListener('resize', () => {
             this.calcularDesplazamiento();
             this.desaparecerAparecer();
+            clearTimeout(this.sliderTimeOut);
+            this.sliderTimeOut = setTimeout(() => {this.orientar()}, 250);
         });
     },
     desaparecerAparecer() {
@@ -115,6 +115,21 @@ var slider = {
         }else {
             this.desplazamiento = document.querySelector('.carrusel > .element').clientWidth + 10;
         }
+    },
+    orientar() {
+        let elements = document.querySelectorAll('.carrusel .element');
+        let i = 0;
+        elements.forEach(element => {
+            let position = element.getClientRects();
+            if(position[0].x <= 0 ) {
+                this.contenedorCarrusel.scrollTo({
+                    top: 0,
+                    left: (this.contenedorCarrusel.scrollLeft + position[0].left) - 10,
+                    behavior: 'smooth'
+                });
+                return;
+            }        
+        });
     }
 }
 
