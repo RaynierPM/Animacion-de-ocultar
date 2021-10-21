@@ -9,7 +9,7 @@ div.slider {
    /* Backgrounds */
     background: #150050; /* Experimental */
     position: relative;
-    width: 100%;
+    width: 100vw;
 }
 
 
